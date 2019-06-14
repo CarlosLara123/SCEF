@@ -1,9 +1,7 @@
-import { Component, OnInit, Inject, ViewChild } from '@angular/core';
+import { Component, OnInit, Inject } from '@angular/core';
 import { SelectionModel } from '@angular/cdk/collections';
 import { MatTableDataSource } from '@angular/material';
-import {MatPaginator} from '@angular/material/paginator' ;
 import { MatDialog, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material';
-import {MatSnackBar} from  '@angular/material/snack-bar' ;
 import { Almacenadora } from 'src/app/models/almacenadora.model';
 import { AlmacenadoraService } from 'src/app/services/almacenadora.service';
 
@@ -25,11 +23,11 @@ export class AlmacenadoraComponent implements OnInit {
   public cantidadActual: number;
   public almacenadoraModel: Almacenadora;
   public almacenadoraEditable: Almacenadora;
-  public almacenadoraSeleccionada: number[];
-  
+  public almacenadoraSeleccionada: number[] = [];
+
   public dataSource2;
 
-  constructor(public dialog: MatDialog,public snackBar: MatSnackBar, private _almacenadoraService: AlmacenadoraService) {
+  constructor(public dialog: MatDialog, private _almacenadoraService: AlmacenadoraService) {
     this.limpiarVariables();
   }
 
@@ -52,13 +50,16 @@ export class AlmacenadoraComponent implements OnInit {
         console.log(result);
         console.table(this.almacenadoraModel);
         this.agregar();
-        this.limpiarVariables()
       }
     });
   }
 
 
   openDialogEdit(): void {
+    if(this.almacenadoraSeleccionada.length == 0){
+      console.log('no hay nada')
+      return;
+    }
     const dialogRef = this.dialog.open(DialogActualizarAlma, {
       width: '500px',
       data: { codigo: this.almacenadoraEditable.codigo, descripcion: this.almacenadoraEditable.descripcion }
@@ -72,7 +73,6 @@ export class AlmacenadoraComponent implements OnInit {
         console.log(result);
         console.table(this.almacenadoraEditable);
         this.editar();
-        this.limpiarVariables();
       }
     });
   }
@@ -91,30 +91,10 @@ export class AlmacenadoraComponent implements OnInit {
         console.log(result);
         console.table(this.almacenadoraEditable);
         this.eliminar(this.almacenadoraSeleccionada[0]);
-        this.limpiarVariables();
       }
     });
   }
 
-  openDialogView(): void {
-    const dialogRef = this.dialog.open(VerAlmacenadora, {
-      width: '500px',
-      data: { codigo: this.almacenadoraEditable.codigo, descripcion: this.almacenadoraEditable.descripcion }
-    });
-
-    dialogRef.afterClosed().subscribe(result => {
-      console.log('The dialog was closed');
-      if (result != undefined) {
-        this.almacenadoraEditable.codigo = result.codigo;
-        this.almacenadoraEditable.descripcion = result.descripcion;
-        console.log(result);
-        console.table(this.almacenadoraEditable);
-
-      }
-    });
-  }
-
-  @ViewChild (MatPaginator) paginator: MatPaginator;
   ngOnInit() {
     this.listarAlmacenadorasParaTabla();
   }
@@ -145,11 +125,9 @@ export class AlmacenadoraComponent implements OnInit {
           this.almacenadoras = response.content;
           this.dataSource2 = new MatTableDataSource<Almacenadora>(this.almacenadoras);
           console.log(this.almacenadoras);
-          this.dataSource2.paginator = this.paginator;
           this.primeraPagina = response.first;
           this.ultimaPagina = response.last;
           this.listarNumeroPagina = response.numberOfElements;
-   
           this.status = 'ok';
         }
       }, error => {
@@ -173,7 +151,7 @@ export class AlmacenadoraComponent implements OnInit {
         } else {
           this.status = 'error';
         }
-      }, error => {
+      }, error => { 
         let errorMessage = <any>error;
         console.log(errorMessage);
         if (errorMessage != null) {
@@ -189,10 +167,9 @@ export class AlmacenadoraComponent implements OnInit {
         console.log(response)
         this.listarAlmacenadorasParaTabla();
         if (response.code == 0) {
-          this.snackBar.open('Agregado exitosamente','',{duration: 3000});
           this.status = 'ok';
         } else {
-          this.snackBar.open(response.description,'',{duration: 3000});
+          alert(response.description);
         }
       }, error => {
         let errorMessage = <any>error;
@@ -209,17 +186,18 @@ export class AlmacenadoraComponent implements OnInit {
     this._almacenadoraService.actualizarAlmacenadora(this.almacenadoraEditable).subscribe(
       response => {
         console.log(response);
-        this.listarAlmacenadorasParaTabla();
         if (response.code == 0) {
-          this.snackBar.open('Actualizado exitosamente','',{duration: 2000});
+          this.listarAlmacenadorasParaTabla();
           this.status = 'ok';
+          this.limpiarVariables();
         } else {
-          this.snackBar.open(response.description,'',{duration: 3000});
+          alert(response.description);
         }
-      }, error => {                 
+      }, error => {
         let errorMessage = <any>error;
-        console.log(errorMessage);        
-        if (errorMessage != null) {          
+        console.log(errorMessage);
+        if (errorMessage != null) {
+          alert(error.description);
           this.status = 'error';
         }
       }
@@ -230,14 +208,11 @@ export class AlmacenadoraComponent implements OnInit {
     if(this.almacenadoraSeleccionada == undefined) return;
     this._almacenadoraService.eliminarAlmacenadora(id).subscribe(
       response => {
-        this.listarAlmacenadorasParaTabla();
         if (response.code == 0) {
           this.almacenadoraEditable = response;
           console.log(this.almacenadoraEditable)
-          this.snackBar.open('Eliminado exitosamente','',{duration: 3000});
           this.status = 'ok';
         } else {
-          this.snackBar.open(response.description,'',{duration: 3000});
           this.status = 'error';
         }
       }, error => {
@@ -264,9 +239,12 @@ export class AlmacenadoraComponent implements OnInit {
 
   imprimir() {
     this.almacenadoraSeleccionada = this.selection.selected.map(row => row.codigo);
-    console.log(this.almacenadoraSeleccionada[0]);
     if (this.almacenadoraSeleccionada[0]) {
+      console.log(this.almacenadoraSeleccionada[0]);
       this.setAlmacenadora(this.almacenadoraSeleccionada[0]);
+    }else{
+      console.log('no hay nada');
+      this.limpiarVariables();
     }
     //    console.table(this.selection.selected)
   }
@@ -350,23 +328,6 @@ export class DialogEliminarAlma {
 
   constructor(
     public dialogRef: MatDialogRef<DialogEliminarAlma>,
-    @Inject(MAT_DIALOG_DATA) public data: Almacenadora) { }
-
-  onNoClick(): void {
-    this.dialogRef.close();
-  }
-
-}
-
-@Component({
-  selector: 'dialog-overview-example-dialog',
-  templateUrl: 'ver-almacenadora.component.html',
-  styleUrls: ['./almacenadora.component.css']
-})
-export class VerAlmacenadora {
-
-  constructor(
-    public dialogRef: MatDialogRef<VerAlmacenadora>,
     @Inject(MAT_DIALOG_DATA) public data: Almacenadora) { }
 
   onNoClick(): void {
